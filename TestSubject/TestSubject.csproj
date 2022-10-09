@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{C07D0756-BE01-43AC-A5A6-5DA9AD956A8B}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>TestSubject</RootNamespace>
+    <AssemblyName>TestSubject</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>false</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Resources\favicon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\SolutionInfo.cs">
+      <Link>Properties\SolutionInfo.cs</Link>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Resources\zzTestANI.ani" />
+    <None Include="Resources\zzTestCS.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="TestForm1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="TestForm1.Designer.cs">
+      <DependentUpon>TestForm1.cs</DependentUpon>
+    </Compile>
+    <None Include="Resources\zzTestDOCX.docx" />
+    <None Include="Resources\zzTestMD.md" />
+    <None Include="Resources\zzTestPDF.pdf" />
+    <None Include="Resources\zzTestPS1.ps1" />
+    <None Include="Resources\zzTestRAR.rar" />
+    <None Include="Resources\zzTestURL.url" />
+    <None Include="Resources\zzTestVSIX.vsix" />
+    <None Include="Resources\zzTestYML.yml" />
+    <None Include="Resources\zzTestZIP.zip" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <SubType>Designer</SubType>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TestForm1.resx">
+      <DependentUpon>TestForm1.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\SelectDll15.png" />
+    <None Include="Resources\zzTestRTF.rtf" />
+    <None Include="Resources\zzTestBAT.bat" />
+    <None Include="Resources\zzTestBAT2.bat" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\SelectFolder15.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestDLL.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestEXE.exe" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestHTML.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestICO.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestMP3.mp3" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestTXT.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTESTVSIXMANIFEST.vsixmanifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestWAV.wav" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zzTestWMV.wmv" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\favicon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\zzTestCUR.cur" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
