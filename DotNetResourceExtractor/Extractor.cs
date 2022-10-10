@@ -33,7 +33,7 @@ namespace DotNetResourceExtractor
 #if DEBUG
             LogWriter += s => Debug.WriteLine(s);
             FileLog = new FileLogging();
-            FileEx.Log += FileLog.WriteLine;
+            FileEx.LogWriter += FileLog.WriteLine;
             LogWriter += FileLog.WriteLine;
 #endif
         }

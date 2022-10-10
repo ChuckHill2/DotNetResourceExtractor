@@ -2,7 +2,7 @@
 // <summary>
 //   
 // </summary>
-// <copyright file="FileEx.cs" company="Chuck Hill">
+// <copyright file="Interlock.cs" company="Chuck Hill">
 // Copyright (c) 2020 Chuck Hill.
 //
 // This library is free software; you can redistribute it and/or

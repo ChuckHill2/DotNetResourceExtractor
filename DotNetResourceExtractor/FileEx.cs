@@ -33,22 +33,16 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.Win32;
 
 namespace ChuckHill2
 {
     /// <summary>
-    /// File Utilities
+    /// Low-level File Utilities.
     /// </summary>
-    /// <remarks>
-    /// Do not use relative file names. 
-    /// </remarks>
     public static class FileEx
     {
         /// <summary>
@@ -58,7 +52,17 @@ namespace ChuckHill2
         ///    The traditional maximum path has been 260 (256 + "\\?\") but as of Win10 this limit may be disabled and allow 
         ///    the true NTFS limit of 32767. To disable this limit within an application the registry flag HKEY_LOCAL_MACHINE
         ///    \SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled [DWORD] must be set to 1, OS rebooted, 
-        ///    AND enabled in the assembly manifest of all assemblies that use this variable.
+        ///    AND enabled in the executable app manifest of all executables (not dlls) that use this variable.
+        ///    <code>
+        ///       <?xml version="1.0" encoding="utf-8"?>
+        ///       <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+        ///         <application xmlns="urn:schemas-microsoft-com:asm.v3">
+        ///           <windowsSettings xmlns:ws2="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+        ///             <ws2:longPathAware>true</ws2:longPathAware>
+        ///           </windowsSettings>
+        ///         </application>
+        ///       </assembly>
+        ///    </code>
         /// </remarks>
         public static readonly int MAX_PATH = (int)(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem", "LongPathsEnabled", 0) ?? 0) == 1 ? short.MaxValue : 256;
 
@@ -67,7 +71,8 @@ namespace ChuckHill2
         private const int IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002;
         private const int IMAGE_DOS_SIGNATURE = 0x5A4D;  // 'MZ'
         private const int IMAGE_NT_SIGNATURE = 0x00004550;  // 'PE00'
-        private const int MIN_EXE_SIZE = 1024;
+
+        private const int MIN_EXE_SIZE = 1024*5;  //this has been empirically derived.
 
         private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
@@ -208,7 +213,7 @@ namespace ChuckHill2
         #endregion
 
         /// <summary>
-        /// FileEx API do not throw any exceptions. Assignining an event handler will allow one to capture any warnings. By default, messages are written to the debug window.
+        /// FileEx API do not throw any exceptions. Assignining an event handler will allow one to capture any warnings. By default, messages are written to the debugger output window.
         /// </summary>
         public static event Action<string> LogWriter;
 
@@ -218,11 +223,9 @@ namespace ChuckHill2
         private static void Log(string msg) => LogWriter(msg);
 
         /// <summary>
-        /// Determine if file is an executable image file.
+        /// Determine if file is an x86/x64 executable image file. Not necessarily .net assembly.
         /// </summary>
-        /// <param name="filename">
-        ///    Any executable image file (not necessarily .net assembly) to retrieve build date from.
-        /// </param>
+        /// <param name="filename">Name of any file to test.</param>
         /// <param name="isDll">Returns true if this is a DLL otherwise an EXE</param>
         /// <returns>True if this is an executable image file.</returns>
         public static bool IsExecutable(string filename, out bool isDll)
@@ -251,22 +254,82 @@ namespace ChuckHill2
         }
 
         /// <summary>
+        /// Parse filename into component parts. 
+        /// Name may contain wildcards.
+        /// File does not need to exist.
+        /// </summary>
+        /// <param name="path">Source filename to parse.</param>
+        /// <param name="dir">Returned directory part or null if path invalid. Expands directory into absolute path. Does not include trailing slash.</param>
+        /// <param name="name">Returned file name part or null if path invalid.</param>
+        /// <param name="ext">Returned file extension or null if path invalid. Includes leading '.'</param>
+        /// <returns>True if path parts are valid components of a file path.</returns>
+        public static bool GetPathParts(string path, out string dir, out string name, out string ext)
+        {
+            dir = null;
+            name = null;
+            ext = null;
+
+            if (string.IsNullOrWhiteSpace(path)) return false;
+
+            // Is "C:\Users\ABC" a directory? Unlike "C:\Users\ABC\" we cannot tell without a trailiing slash, so we take a peek to see. Not a 100% but it is better than nothing.
+            if (FileEx.DirectoryExists(path))
+            {
+                dir = FileEx.GetFullPath(path);
+                if (dir == null) return false;
+                name = string.Empty;
+                ext = string.Empty;
+                return true;
+            }
+
+            int i = path.LastIndexOfAny(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+            var nameext = i == -1 ? path : path.Substring(i + 1);
+            if (nameext.IndexOfAny(GetPathParts_InvalidFileNameChars.Value) != -1) return false;
+
+            dir = i == -1 ? "" : path.Substring(0, i);
+
+            i = nameext.LastIndexOf('.');
+            name = i == -1 ? nameext : nameext.Substring(0, i);
+            ext = i == -1 ? "" : nameext.Substring(i);
+
+            if (dir == "") dir = ".";
+            dir = FileEx.GetFullPath(dir);
+            if (dir == null)
+            {
+                name = null;
+                ext = null;
+                return false;
+            }
+
+            return true;
+        }
+        private static readonly Lazy<char[]> GetPathParts_InvalidFileNameChars = new Lazy<char[]>(() => Path.GetInvalidFileNameChars().Where(c => c != '*' && c != '?').ToArray(), true);
+
+        /// <summary>
         /// Detect if this binary file is a .NET assembly.
         /// </summary>
-        /// <param name="filename">Name of file to test</param>
+        /// <param name="filename">Name of any file to test.</param>
         /// <returns>True if this is a .NET assembly.</returns>
-        /// https://social.msdn.microsoft.com/Forums/en-US/827c985c-9d12-48ad-9b45-1eca90702983/determining-whether-a-file-is-an-assembly?forum=csharpgeneral
-        /// https://stmxcsr.com/reversing/determine-net-assembly.html
-        /// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
-        /// https://www.codeproject.com/Articles/12096/NET-Manifest-Resources
-        /// https://en.wikipedia.org/wiki/Portable_Executable
-        /// https://github.com/pigeonhands/dnPE/tree/master/dnPE
-        /// https://github.com/coderforlife/PEResourceDump
-        public static bool IsAssembly(string filename)
+        public static bool IsAssembly(string filename) => IsAssembly(filename, out bool isDll);
+
+        /// <summary>
+        /// Detect if this binary file is a .NET assembly.
+        /// </summary>
+        /// <param name="filename">Name of any file to test.</param>
+        /// <param name="isDll">Returns true if assembly is a dynamic link library (DLL)</param>
+        /// <returns>True if this is a .NET assembly.</returns>
+        public static bool IsAssembly(string filename, out bool isDll)
         {
+            // https://social.msdn.microsoft.com/Forums/en-US/827c985c-9d12-48ad-9b45-1eca90702983/determining-whether-a-file-is-an-assembly?forum=csharpgeneral
+            // https://stmxcsr.com/reversing/determine-net-assembly.html
+            // https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+            // https://www.codeproject.com/Articles/12096/NET-Manifest-Resources
+            // https://en.wikipedia.org/wiki/Portable_Executable
+            // https://github.com/pigeonhands/dnPE/tree/master/dnPE
+            // https://github.com/coderforlife/PEResourceDump
+            isDll = false;
             using (Stream fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.SequentialScan))
             {
-                if (fs.Length < 1024*5) return false; //file is not big enough
+                if (fs.Length < MIN_EXE_SIZE) return false; //file is not big enough
                 BinaryReader reader = new BinaryReader(fs);
 
                 fs.Position = 0;  //starts with struct IMAGE_DOS_HEADER 
@@ -286,6 +349,7 @@ namespace ChuckHill2
                 var optionalHeaderSize = reader.ReadUInt16(); //== full headersize which includes data dictionary size, thus not really useful.
                 var characteristics = reader.ReadUInt16();
                 if ((characteristics & IMAGE_FILE_EXECUTABLE_IMAGE) == 0) return false;
+                isDll = (characteristics & IMAGE_FILE_DLL) == IMAGE_FILE_DLL;
 
                 var optionalHeaderMagic = reader.ReadUInt16();
                 if (optionalHeaderMagic == 0x10B) fs.Position += (96 - 6); //PE32, sizeof(OptionalHeader32) - first and last fields - data dictionary
@@ -311,17 +375,24 @@ namespace ChuckHill2
         /// Gets the build/link timestamp from the specified executable file header.
         /// </summary>
         /// <remarks>
-        ///    WARNING: When compiled in a .netcore application/library, the PE timestamp 
-        ///    is NOT set with the the application link time. It contains some other non-
-        ///    timestamp (hash?) value. To force the .netcore linker to embed the true 
-        ///    timestamp as previously, add or set the csproj property 
-        ///    "<Deterministic>false</Deterministic>".
+        ///   Microsoft has changed what the TimeStamp field means in the PE Header. Previously, this 
+        ///   field was the timestamp (integer from 1/1/1970). Now it is simply a hash value of the 
+        ///   content of this executable. This makes the results of rebuilds identical. Good for many 
+        ///   features (like if a rebuild is needed and binding), but bad for determining the true date 
+        ///   of the build.<br/>
+        ///   To restore the legacy timestamp, within the Visual Studio project file, add the property 
+        ///   <Deterministic>False</Deterministic> as it does not exist in the file, because default 
+        ///   value is set to True.<br/>
+        ///   More details are here: https://devblogs.microsoft.com/oldnewthing/20180103-00/?p=97705
         /// </remarks>
         /// <param name="filePath">
         ///    Any executable image file (not necessarily .net assembly) to retrieve build date
         ///    from. If file is not an executable image file, the file creation date is returned.
         /// </param>
-        /// <returns>The local DateTime that the specified executable image file was built.</returns>
+        /// <returns>
+        ///    The local DateTime that the specified executable image file was built
+        ///    or the filesystem file creation time
+        /// </returns>
         public static DateTime ExecutableTimestamp(string filePath)
         {
             uint TimeDateStamp = 0;
@@ -672,7 +743,11 @@ namespace ChuckHill2
         /// <param name="filename">Filename to check</param>
         /// <returns>True if file exists.</returns>
         /// <remarks>Does not throw exceptions.</remarks>
-        public static bool Exists(string filename) => (int)GetFileAttributes(filename) != -1;
+        public static bool Exists(string filename)
+        {
+            var attr = GetFileAttributes(filename);
+            return ((int)attr != -1 && (attr & FileAttributes.Directory) == 0);
+        }
 
         /// <summary>
         /// Check if a directory exists.

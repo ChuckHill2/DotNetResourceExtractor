@@ -144,7 +144,7 @@ namespace DotNetResourceExtractor
 
         private void m_btnSelectDestination_Click(object sender, EventArgs e)
         {
-            var dir = FolderSelectDialog.Show(this, "Select TV Series Root Folder", m_txtDestination.Text);
+            var dir = FolderSelectDialog.Show(this, "Select Extracted Results Folder", m_txtDestination.Text);
             if (dir == null) return;
             m_txtDestination.Text = dir;
             if (!string.IsNullOrWhiteSpace(m_txtAssembly.Text)) m_btnExtract.Enabled = true;
@@ -160,6 +160,7 @@ namespace DotNetResourceExtractor
             var file = ValidateFileName(m_txtAssembly.Text);
             if (file == null)
             {
+                m_btnExtract.Enabled = false;
                 MiniMessageBox.ShowDialog(this, "Source filename is no longer valid.", "Error", MiniMessageBox.Buttons.OK, MiniMessageBox.Symbol.Error);
                 m_txtAssembly.Focus();
                 return;
@@ -167,6 +168,7 @@ namespace DotNetResourceExtractor
 
             if (!Directory.Exists(m_txtDestination.Text))
             {
+                m_btnExtract.Enabled = false;
                 MiniMessageBox.ShowDialog(this, "Destination folder is no longer valid.", "Error", MiniMessageBox.Buttons.OK, MiniMessageBox.Symbol.Error);
                 m_txtDestination.Focus();
                 return;
@@ -205,6 +207,8 @@ namespace DotNetResourceExtractor
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(file)) return null;
+
                 bool multiList = file.Contains('|');
                 bool hasWildcards = file.Any(c => c == '*' || c == '?');
 
@@ -216,13 +220,17 @@ namespace DotNetResourceExtractor
 
                 if (multiList) return null;
 
-                if (!hasWildcards && Directory.Exists(file)) return Path.Combine(Path.GetFullPath(file), "*");
-                var dir = Path.GetDirectoryName(file);
-                var name = Path.GetFileName(file);
-                var dirExists = Directory.Exists(dir);
-                if (hasWildcards && dirExists) return Path.Combine(Path.GetFullPath(dir),name);
-                if (!dirExists) return null;
-                if (FileEx.Exists(file)) return Path.GetFullPath(file);
+                if (!FileEx.GetPathParts(file, out var dir, out var name, out var ext)) return null;
+
+                if (name.Length == 0 && ext.Length == 0)
+                {
+                    name = "*";
+                    return string.Concat(dir, "\\", name, ext);
+                }
+
+                file = string.Concat(dir, "\\", name, ext);
+                if (!FileEx.IsAssembly(file)) return null;
+                return file;
             }
             catch { }
 
