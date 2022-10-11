@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -12,6 +12,8 @@ namespace DotNetResourceExtractor
 {
     public partial class FormMain : Form
     {
+        bool AppClosing = false; //flag to notify m_txtXxxxx_Leave() that we no longer care about textbox validation.
+
         public FormMain()
         {
             InitializeComponent();
@@ -20,11 +22,11 @@ namespace DotNetResourceExtractor
             MiniMessageBox.Colors.MessageFont = this.Font;
             m_btnExtract.Enabled = false;
             m_chkSeparateFolders.Checked = true;
+            this.FormClosing += (s, e) => AppClosing = true;
 
 #if DEBUG
-            var dir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-            m_txtAssembly.Text = Path.Combine(dir,"TestSubject.dll");
-            m_txtDestination.Text = Path.Combine(dir, "Extracted");
+            m_txtAssembly.Text = Path.GetFullPath(@"..\..\..\TestSubject\bin\Debug\TestSubject.dll");
+            m_txtDestination.Text = Path.GetFullPath("Extracted");
             m_btnExtract.Enabled = true;
 #endif
         }
@@ -52,6 +54,10 @@ namespace DotNetResourceExtractor
 
         private void m_txtAssembly_Leave(object sender, EventArgs e)
         {
+            if (AppClosing) return;
+            if (m_btnExit.Focused) return;
+            if (m_btnSelectAssembly.Focused) return;
+
             var file = m_txtAssembly.Text;
             if (string.IsNullOrWhiteSpace(file))
             {
@@ -64,13 +70,20 @@ namespace DotNetResourceExtractor
             if (file == null)
             {
                 m_btnExtract.Enabled = false;
-                MiniMessageBox.Show(this, "Not a valid Assembly filename or name with wildcards ( ?, * ).", "Invalid Assembly Filename", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MiniMessageBox.ShowDialog(this, "Not a valid/existing Assembly filename or name with wildcards ( ?, * ).", "Invalid Assembly Filename", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 m_txtAssembly.Focus();
                 return;
             }
 
             m_txtAssembly.Text = file;
             if (!string.IsNullOrWhiteSpace(m_txtDestination.Text)) m_btnExtract.Enabled = true;
+        }
+
+        private void m_txtAssembly_DoubleClick(object sender, EventArgs e)
+        {
+            m_txtAssembly.Select(m_txtAssembly.SelectionStart, 0);
+            if (!FileEx.GetPathParts(m_txtAssembly.Text, out var dir, out var name, out var ext)) return;
+            Process.Start(dir);
         }
 
         private void m_btnSelectAssembly_Click(object sender, EventArgs e)
@@ -121,6 +134,10 @@ namespace DotNetResourceExtractor
 
         private void m_txtDestination_Leave(object sender, EventArgs e)
         {
+            if (AppClosing) return;
+            if (m_btnExit.Focused) return;
+            if (m_btnSelectDestination.Focused) return;
+
             var file = m_txtDestination.Text;
             if (string.IsNullOrWhiteSpace(file))
             {
@@ -133,13 +150,22 @@ namespace DotNetResourceExtractor
             if (file == null)
             {
                 m_btnExtract.Enabled = false;
-                MiniMessageBox.Show(this, "Not a valid destination folder. It does not need to exist.", "Invalid Folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MiniMessageBox.ShowDialog(this, "Not a valid destination folder. It does not need to exist.", "Invalid Folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 m_txtDestination.Focus();
                 return;
             }
 
             m_txtDestination.Text = file;
             if (!string.IsNullOrWhiteSpace(m_txtAssembly.Text)) m_btnExtract.Enabled = true;
+        }
+
+        private void m_txtDestination_DoubleClick(object sender, EventArgs e)
+        {
+            m_txtDestination.Select(m_txtDestination.SelectionStart, 0);
+            var dir = FileEx.GetFullPath(m_txtDestination.Text);
+            if (dir == null) return;
+            if (!FileEx.DirectoryExists(dir)) return;
+            Process.Start(dir);
         }
 
         private void m_btnSelectDestination_Click(object sender, EventArgs e)
@@ -165,15 +191,18 @@ namespace DotNetResourceExtractor
                 m_txtAssembly.Focus();
                 return;
             }
+            m_txtAssembly.Text = file;
 
-            if (!Directory.Exists(m_txtDestination.Text))
+            var dir = FileEx.GetFullPath(m_txtDestination.Text);
+            if (dir==null)
             {
                 m_btnExtract.Enabled = false;
                 MiniMessageBox.ShowDialog(this, "Destination folder is no longer valid.", "Error", MiniMessageBox.Buttons.OK, MiniMessageBox.Symbol.Error);
                 m_txtDestination.Focus();
                 return;
             }
-            m_txtAssembly.Text = file;
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            m_txtDestination.Text = dir;
 
             m_btnExtract.Enabled = false;
             CancellationTokenSource cancelSource = new CancellationTokenSource();
@@ -200,6 +229,7 @@ namespace DotNetResourceExtractor
 
         private void m_btnExit_Click(object sender, EventArgs e)
         {
+            AppClosing = true;
             this.Close();
         }
 

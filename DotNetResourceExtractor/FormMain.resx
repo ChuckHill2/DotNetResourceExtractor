@@ -120,16 +120,14 @@
   <metadata name="toolTip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
   </metadata>
-  <metadata name="toolTip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>17, 17</value>
-  </metadata>
   <data name="m_txtAssembly.ToolTip" xml:space="preserve">
     <value>Enter a valid .NET assembly or a filepath with wildcards (*,?).
 There are 4 ways to enter the assembly name:
 (1) Type it in
 (2) Copy n' paste
 (3) Click 'n drag from Windows Explorer
-(4) Select from popup file dialog.</value>
+(4) Select from popup file dialog.
+Double-click to open the folder.</value>
   </data>
   <data name="m_lblAssembly.ToolTip" xml:space="preserve">
     <value>Enter a valid .NET assembly or a filepath with wildcards (*,?).
@@ -137,7 +135,8 @@ There are 4 ways to enter the assembly name:
 (1) Type it in
 (2) Copy n' paste
 (3) Click 'n drag from Windows Explorer
-(4) Select from popup file dialog.</value>
+(4) Select from popup file dialog.
+Double-click to open the folder.</value>
   </data>
   <data name="m_lblDestination.ToolTip" xml:space="preserve">
     <value>Enter a destination folder. It does not need to exist.
@@ -145,7 +144,8 @@ There are 4 ways to enter the folder name:
 (1) Type it in
 (2) Copy n' paste
 (3) Click 'n drag from Windows Explorer
-(4) Select from popup folder dialog.</value>
+(4) Select from popup folder dialog.
+Double-click to open the folder.</value>
   </data>
   <data name="m_txtDestination.ToolTip" xml:space="preserve">
     <value>Enter a destination folder. It does not need to exist.
@@ -153,6 +153,7 @@ There are 4 ways to enter the folder name:
 (1) Type it in
 (2) Copy n' paste
 (3) Click 'n drag from Windows Explorer
-(4) Select from popup folder dialog.</value>
+(4) Select from popup folder dialog.
+Double-click to open the folder.</value>
   </data>
 </root>

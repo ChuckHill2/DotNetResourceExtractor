@@ -80,6 +80,7 @@ namespace DotNetResourceExtractor
             this.toolTip1.SetToolTip(this.m_txtAssembly, resources.GetString("m_txtAssembly.ToolTip"));
             this.m_txtAssembly.DragDrop += new System.Windows.Forms.DragEventHandler(this.m_txtAssembly_DragDrop);
             this.m_txtAssembly.DragEnter += new System.Windows.Forms.DragEventHandler(this.m_txtAssembly_DragEnter);
+            this.m_txtAssembly.DoubleClick += new System.EventHandler(this.m_txtAssembly_DoubleClick);
             this.m_txtAssembly.Leave += new System.EventHandler(this.m_txtAssembly_Leave);
             // 
             // m_lblAssembly
@@ -114,6 +115,7 @@ namespace DotNetResourceExtractor
             this.toolTip1.SetToolTip(this.m_txtDestination, resources.GetString("m_txtDestination.ToolTip"));
             this.m_txtDestination.DragDrop += new System.Windows.Forms.DragEventHandler(this.m_txtDestination_DragDrop);
             this.m_txtDestination.DragEnter += new System.Windows.Forms.DragEventHandler(this.m_txtDestination_DragEnter);
+            this.m_txtDestination.DoubleClick += new System.EventHandler(this.m_txtDestination_DoubleClick);
             this.m_txtDestination.Leave += new System.EventHandler(this.m_txtDestination_Leave);
             // 
             // m_btnSelectAssembly
