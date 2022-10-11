@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -112,7 +112,7 @@ namespace DotNetResourceExtractor
             if (!FileEx.IsAssembly(file)) return;
             if (!Duplicates.TryAdd(Path.GetFileName(file) + FileEx.Length(file).ToString(), null)) return; //ignore duplicates
 
-            //Interlocked.Increment(ref FileIndex);
+            //Interlocked.Increment(ref FileIndex); //not reliable for some reason...
             var FileHash = file.GetHashCode().ToString("X8");
             Log($"{FileHash}-00 Processing {file}");
 
@@ -154,6 +154,33 @@ namespace DotNetResourceExtractor
             [Conditional("DEBUG")]
             private void Log(string msg) => LogWriter(msg);
 
+            private IEnumerable<DictionaryEntry> ResEntries(ResourceSet rs, string resname)
+            {
+                // "application/x-microsoft.net.object.binary.base64" resources have the c# Type embedded in
+                // order to deserialize the object. However if the type is not in this assembly or any of the
+                // system assemblies or assembly is not found via the assembly resolver, an exception will be
+                // thrown. For the purposes of this extractor, that is not a big deal and we just ignore it.
+
+                var enu = rs.GetEnumerator();
+                while (enu.MoveNext())
+                {
+                    DictionaryEntry entry;
+                    string key = null;
+                    try
+                    {
+                        key = (string)enu.Key;
+                        entry = (DictionaryEntry)enu.Current;
+                    }
+                    catch(FileNotFoundException ex)
+                    {
+                        Log($"{FileHash}-04 {resname}: ERROR Key={key??"NULL"} {ex.GetType().Name}: {ex.Message}");
+                        continue;
+                    }
+                    yield return entry;
+                }
+                yield break;
+            }
+
             /// <summary>
             /// Extract DotNet resources from a validated assembly file then the caller unloads it from the process space.
             /// </summary>
@@ -177,14 +204,13 @@ namespace DotNetResourceExtractor
                 var ext = Path.GetExtension(file);
                 var filenameWithoutExtension = Path.GetFileNameWithoutExtension(file);
 
-                // For logging just in case something bad happens
                 var dom = AppDomain.CurrentDomain;
-                dom.AssemblyResolve += Dom_AssemblyResolve;
-                dom.ResourceResolve += Dom_AssemblyResolve;
-                dom.ReflectionOnlyAssemblyResolve += Dom_AssemblyResolve;
+                dom.AssemblyResolve += (s,e) => AssemblyResolver(ResolverType.AssemblyResolve, s, e);
+                dom.ResourceResolve += (s, e) => AssemblyResolver(ResolverType.ResourceResolve, s, e);
+                dom.ReflectionOnlyAssemblyResolve += (s, e) => AssemblyResolver(ResolverType.ReflectionOnlyAssemblyResolve, s, e);
                 dom.UnhandledException += Dom_UnhandledException;
-                dom.DomainUnload += Dom_DomainUnload;
-                dom.ProcessExit += Dom_ProcessExit;
+                dom.DomainUnload += (s,e)=> Log($"{FileHash}-82 Domain Unloaded: {Filename}");
+                dom.ProcessExit += (s,e)=> Log($"{FileHash}-81 Parent Process Exiting: Unloading {Filename}");
 
                 var folder = (separateFolders ? string.Concat(destFolder, "\\", filenameWithoutExtension) : destFolder) + "\\";
 
@@ -214,12 +240,13 @@ namespace DotNetResourceExtractor
                             try { rs = rm.GetResourceSet(System.Globalization.CultureInfo.InvariantCulture, true, true); } catch { }
                             if (rs == null) { rm.ReleaseAllResources(); continue; }
 
-                            foreach (DictionaryEntry entry in rs)
+                            foreach (var entry in ResEntries(rs, resname))
                             {
                                 filename = string.Concat(folder, shortResName, string.Join("-", entry.Key.ToString().Split(Path.GetInvalidFileNameChars())), ".bin-", Environment.TickCount.ToString("X8"));
 
                                 if (entry.Value is Image) // Supports both System.Drawing.Bitmap and System.Drawing.Imaging.Metafile
                                 {
+                                    Log($"{FileHash}-04 {resname}: EXTRACTED Key={entry.Key?.ToString() ?? "NULL"} Value={entry.Value?.ToString() ?? "NULL"} ({entry.Value?.GetType().Name ?? "NULL"})");
                                     hasResources = true;
                                     var bmp = (Image)entry.Value;
 
@@ -231,6 +258,7 @@ namespace DotNetResourceExtractor
 
                                 if (entry.Value is Icon)
                                 {
+                                    Log($"{FileHash}-04 {resname}: EXTRACTED Key={entry.Key?.ToString() ?? "NULL"} Value={entry.Value?.ToString() ?? "NULL"} ({entry.Value?.GetType().Name ?? "NULL"})");
                                     hasResources = true;
                                     var ico = (Icon)entry.Value;
                                     filename = GetUniqueFilename(Path.ChangeExtension(filename, ".ico"));
@@ -241,6 +269,7 @@ namespace DotNetResourceExtractor
 
                                 if (entry.Value is String)
                                 {
+                                    Log($"{FileHash}-04 {resname}: EXTRACTED Key={entry.Key?.ToString() ?? "NULL"} Value={entry.Value?.ToString() ?? "NULL"} ({entry.Value?.GetType().Name ?? "NULL"})");
                                     hasResources = true;
                                     var s = (string)entry.Value;
 
@@ -263,6 +292,7 @@ namespace DotNetResourceExtractor
 
                                 if (entry.Value is Stream)
                                 {
+                                    Log($"{FileHash}-04 {resname}: EXTRACTED Key={entry.Key?.ToString() ?? "NULL"} Value={entry.Value?.ToString() ?? "NULL"} ({entry.Value?.GetType().Name ?? "NULL"})");
                                     hasResources = true;
                                     var s = (Stream)entry.Value;
 
@@ -276,6 +306,7 @@ namespace DotNetResourceExtractor
 
                                 if (entry.Value is Byte[])
                                 {
+                                    Log($"{FileHash}-04 {resname}: EXTRACTED Key={entry.Key?.ToString() ?? "NULL"} Value={entry.Value?.ToString() ?? "NULL"} ({entry.Value?.GetType().Name ?? "NULL"})");
                                     hasResources = true;
                                     var b = (byte[])entry.Value;
 
@@ -287,6 +318,7 @@ namespace DotNetResourceExtractor
 
                                 if (entry.Value is ImageListStreamer)
                                 {
+                                    Log($"{FileHash}-04 {resname}: EXTRACTED Key={entry.Key?.ToString() ?? "NULL"} Value={entry.Value?.ToString() ?? "NULL"} ({entry.Value?.GetType().Name ?? "NULL"})");
                                     hasResources = true;
                                     var streamer = (ImageListStreamer)entry.Value;
 
@@ -344,6 +376,7 @@ namespace DotNetResourceExtractor
                             assembly.GetManifestResourceStream(resname).CopyTo(fs);
                         }
                         DuplicateFixup(filename);
+                        Log($"{FileHash}-04 {resname}: EXTRACTED {filename}");
                     }
                 }
                 catch (Exception ex)
@@ -359,16 +392,6 @@ namespace DotNetResourceExtractor
                 }
             }
 
-            private void Dom_ProcessExit(object sender, EventArgs e)
-            {
-                Log($"{FileHash}-81 Parent Process Exiting: Unloading {Filename}");
-            }
-
-            private void Dom_DomainUnload(object sender, EventArgs e)
-            {
-                Log($"{FileHash}-82 Domain Unloaded: {Filename}");
-            }
-
             private void Dom_UnhandledException(object sender, UnhandledExceptionEventArgs e)
             {
                 string emsg;
@@ -379,18 +402,81 @@ namespace DotNetResourceExtractor
                     emsg = $"{ex.GetType().Name}: {ex.Message}";
                 }
                 else emsg = e.ExceptionObject.ToString();
-
-                Log($"{FileHash}-80 Unhandled Exception: {AppDomain.CurrentDomain.FriendlyName} {e.ExceptionObject?.ToString()??"NULL"}");
+                Log($"{FileHash}-80 Unhandled Exception: {Filename} {emsg}");
             }
 
-            private Assembly Dom_AssemblyResolve(object sender, ResolveEventArgs args)
+            private enum ResolverType { AssemblyResolve, ResourceResolve, ReflectionOnlyAssemblyResolve }
+            private Assembly AssemblyResolver(ResolverType resolver, object sender, ResolveEventArgs args)
             {
-                Log($"{FileHash}-79 Resolver: Name={args.Name}, RequestingAssembly={args.RequestingAssembly?.GetName().ToString() ?? "NULL"}");
-                return null;
+                AssemblyName asmName = new AssemblyName(args.Name);
+                Exception ex = null;
+                Assembly asm = null;
+
+                asm = GetLoadedAssemblyByName(asmName.Name + ".dll"); //If it is already loaded, return it.
+                if (asm != null) return asm;
+
+                // Hunt for the requisite assembly starting in the parent directory where our assembly-to-extract resides.
+                try
+                {
+                    var dir = Path.GetDirectoryName(Path.GetDirectoryName(Filename));
+                    var fullpath = FileEx.EnumerateFiles(dir, SearchOption.AllDirectories)
+                        .Where(f => Path.GetFileNameWithoutExtension(f).Equals(asmName.Name, StringComparison.OrdinalIgnoreCase)
+                                    && FileEx.IsAssembly(f)
+                                    && ValidateAssembly(f, asmName))
+                        .FirstOrDefault();
+
+                    if (fullpath != null)
+                    {
+                        if (resolver == ResolverType.ReflectionOnlyAssemblyResolve)
+                            asm = Assembly.ReflectionOnlyLoadFrom(fullpath);
+                        else
+                            asm = Assembly.LoadFrom(fullpath);
+                    }
+                }
+                catch (Exception e) { ex = e; }
+                finally
+                {
+                    if (asm == null)
+                    {
+                        if (ex==null) Log($"{FileHash}-79 Resolver: Unresolved assembly: \"{asmName.Name}\"");
+                        else Log($"{FileHash}-79 Resolver Error: \"{ex}\"");
+                    }
+                    else
+                    {
+                        string loc = asm.ToString();
+                        try { if (!string.IsNullOrEmpty(asm.Location)) loc = asm.Location; } catch { }
+                        Log($"{FileHash}-79 Resolved: {args.Name} => {loc}");
+                    }
+                }
+                return asm;
+            }
+            public Assembly GetLoadedAssemblyByName(string filename)
+            {
+                filename = Path.GetFileNameWithoutExtension(filename);
+                return AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a =>
+                {   //Dynamic assemblies throw an exception when referencing Location!
+                    try { if (a.IsDynamic) return false; return (string.Compare(Path.GetFileNameWithoutExtension(a.Location), filename, true) == 0); }
+                    catch { return false; }
+                });
+            }
+            private bool ValidateAssembly(string f, AssemblyName reference)
+            {
+                //Validate that the assembly will load successfully 
+                AssemblyName newName = System.Reflection.AssemblyName.GetAssemblyName(f);
+                if (!AssemblyName.ReferenceMatchesDefinition(reference, newName)) return false;
+                //if the requested assembly is signed, then the one we found better have the same signature
+                byte[] token = newName.GetPublicKeyToken();
+                if (token == null) token = new byte[0];
+                byte[] refToken = reference.GetPublicKeyToken();
+                if (refToken == null) refToken = new byte[0];
+                if (refToken.Length > 0 && !refToken.SequenceEqual(token)) return false;
+                return true;
             }
 
             private void AddFileSummary(string dstFolder, string fileToAdd)
             {
+                // Add a summary file to each destination folder containing the full filename of the files that were
+                // extracted. There may may be multiple with the same name but different folders and are not identical.
                 try
                 {
                     AddFileSummaryLocker.Lock();
@@ -421,7 +507,7 @@ namespace DotNetResourceExtractor
                 }
             }
 
-            // TBD -- Test if this file is a duplicate of previous versions with the same filename.
+            // Test if this file is a duplicate of previous versions with the same filename.
             // Current mechanism only tests this file (e.g. xxxx(02).txt) to original file (e.g. xxxx.txt)
             // Problem:
             // file xxxx.txt does not exist. xxxx.txt not a duplicate.
@@ -445,12 +531,6 @@ namespace DotNetResourceExtractor
                     var path = string.Concat(dir, name, newext);
                     var newpath = istemp ? GetUniqueFilename(path) : path;
 
-                    //if (istemp && path == newpath)
-                    //{
-                    //    if (sourceDataFile != newpath) FileEx.Move(sourceDataFile, newpath);
-                    //    return;
-                    //}
-
                     var oldlen = FileEx.Length(sourceDataFile);
                     for (int i = 0; i <= 10; i++) //there may be gaps in the file versions, so we just look for the first 10
                     {
@@ -470,7 +550,7 @@ namespace DotNetResourceExtractor
                 }
             }
 
-#region private static string ImageExtension(Guid rawformat)
+            #region private static string ImageExtension(Guid rawformat)
             private static readonly Guid ImageFormatUndefined = new Guid(0xb96b3ca9, 0x0728, 0x11d3, 0x9d, 0x7b, 0x00, 0x00, 0xf8, 0x1e, 0xf3, 0x2e);
             private static readonly Guid ImageFormatMemoryBMP = new Guid(0xb96b3caa, 0x0728, 0x11d3, 0x9d, 0x7b, 0x00, 0x00, 0xf8, 0x1e, 0xf3, 0x2e);
             private static readonly Guid ImageFormatBMP = new Guid(0xb96b3cab, 0x0728, 0x11d3, 0x9d, 0x7b, 0x00, 0x00, 0xf8, 0x1e, 0xf3, 0x2e);
@@ -503,7 +583,7 @@ namespace DotNetResourceExtractor
 
                 return ".img";
             }
-#endregion
+            #endregion
         }
     }
 }
