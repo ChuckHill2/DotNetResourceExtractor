@@ -257,9 +257,9 @@ namespace DotNetResourceExtractor
                     name = "*";
                     return string.Concat(dir, "\\", name, ext);
                 }
-
+                if (!FileEx.DirectoryExists(dir)) return null;
                 file = string.Concat(dir, "\\", name, ext);
-                if (!FileEx.IsAssembly(file)) return null;
+                if (!hasWildcards && !FileEx.IsAssembly(file)) return null;
                 return file;
             }
             catch { }
